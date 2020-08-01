@@ -27,3 +27,6 @@ I have the following in */etc/conf.d/inputattach*:
 
 The **inputattach** systemd service can then be used to bring the device up during boot.  That done, simply also load the **BallMouse** service, or just run **BallMouse**.  It should create a new **evdev** device, which is your emulated mouse.
 
+### ...but what's the actual problem?
+
+ Honestly, in trying to write this thing, I found that literally any device which presents buttons BTN_C, BTN_SOUTH, or BTN_EAST, all of which my SpaceBall does, fails to match the MatchIsMouse rule in *Xorg.conf*.  That's probably not the only problem, considering that it wouldn't let me manually configure the device either, but it won't help.  To be thorough, I made sure to include actual mouse buttons (LEFT, RIGHT, MIDDLE), offer only relative coordinates, and even put the word "mouse" in the device name.  Probably not all of that is required.  Maybe most of it isn't, but it works now.
