@@ -1,7 +1,7 @@
 ## BallMouse
 Translates a Linux evdev device from a SpaceBall into something that actually looks like a mouse.
 
-They tell me necessity is the mother of invention.  Here's an invention that I found necessary when I got an old RS232 SpaceBall 4000 FLX and wanted to use it as a mouse on a Linux system with Xorg.  The device can be attached to the input subsystem with **inputattach**, but when device that shows up when you do looks to the X server like either a joystick or a keyboard, or maybe a combination of both, or not quite either one.  It won't autodetect and do anything useful, and on my system, even with explicit configuration, it would consistently fail to deliver core pointer events.
+They tell me necessity is the mother of invention.  Here's an invention that I found necessary when I got an old RS232 SpaceBall 4000 FLX and wanted to use it as a mouse on a Linux system with Xorg.  The device can be attached to the input subsystem with **inputattach**, but the device that shows up when you do looks to the X server like either a joystick or a keyboard, or maybe a combination of both, or not quite either one.  It won't autodetect and do anything useful, and on my system, even with explicit configuration, it would consistently fail to deliver core pointer events.
 
 ### Enter *BallMouse*
 
@@ -11,6 +11,7 @@ They tell me necessity is the mother of invention.  Here's an invention that I f
 
    * Make sure you have libevdev on your system and the correct includes for it.
    * Edit the **Makefile**, making sure the library and include paths for libevdev are correct.
+   * Edit **config.h**, in case you want some of the adjustments to your mouse output to be a bit different than mine.
    * **make**
    * Put **BallMouse** into */usr/local/bin* and **BallMouse.service** in */etc/systemd/system*, or -- at your option -- edit **BallMouse.service** and change it to load **BallMouse** from whatever location you like, putting the **BallMouse** executable there.
 
