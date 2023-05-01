@@ -14,7 +14,7 @@
 #define VELOCITY	.0009
 
 /* Farther scaling to apply to the wheel velocity later. */
-#define WVEL		.2
+#define WVEL		.0004
 
 /* Because the input subsystem needs to know, we'll cap
  * our relative motion at this number.

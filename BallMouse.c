@@ -15,21 +15,103 @@
 #include		<poll.h>
 #include		"config.h"
 
+/* Refer to https://kernel.org/doc/html/v4.12/input/uinput.html */
+static void send_arrow(int ofd, int code)
+{
+	struct input_event out;
+
+	out.type = EV_KEY;
+	out.code = code;
+	out.value = 1;
+	write(ofd, &out, sizeof(out));
+
+	out.type = EV_SYN;
+	out.code = SYN_REPORT;
+	out.value = 0;
+	write(ofd, &out, sizeof(out));
+
+	out.type = EV_KEY;
+	out.code = code;
+	out.value = 0;
+	write(ofd, &out, sizeof(out));
+
+	out.type = EV_SYN;
+	out.code = SYN_REPORT;
+	out.value = 0;
+	write(ofd, &out, sizeof(out));
+}
+
 static inline void event(int ofd, int type, int code, int val) {
 	struct input_event out;
 	out.type = type;
 	out.code = code;
 	out.value = val;
+
 	/* Do some simple remapping to be more mouse-like */
 	if (out.type == EV_KEY) {
 		if (out.code == BTN_NORTH)	out.code = BTN_MIDDLE;
 		if (out.code == BTN_EAST)	out.code = BTN_RIGHT;
 		if (out.code == BTN_SOUTH)	out.code = BTN_LEFT;
+		if (out.code == BTN_Z)		out.code = KEY_F11;
 	}
-	if (out.type == EV_REL) {
-		if (out.code == REL_RZ) {
-			out.code = REL_WHEEL;
-			out.value = out.value*WVEL;
+
+	if (out.type == EV_ABS) {
+		if (out.code == ABS_X ||
+		    out.code == ABS_Y) {
+			/* FIXME: this is a hack, and this is usable. But it is jerky.
+			 * For starter, we should repeat the last events unless it is zero
+			 * (or inside the dead zone, see ABS_MIN). Otherwise we need to
+			 * perpetually move the stick or the cursor stops.
+			 */
+			if (abs(out.value) > ABS_MIN) {
+				/* Allow a bit of a dead spot near the center. */
+				out.type = EV_REL;
+				out.value *= VELOCITY;
+				write(ofd, &out, sizeof(out));
+			}
+			return;
+		}
+
+		if (out.code == ABS_RX) {
+			if (abs(out.value) > ABS_MIN) {
+				out.type = EV_REL;
+				out.code = REL_HWHEEL;
+				if (out.value > 0)
+					out.value = 10;
+				else
+					out.value = -10;
+				write(ofd, &out, sizeof(out));
+			}
+			return;
+		}
+
+		if (out.code == ABS_RY) {
+			if (abs(out.value) > 10000) { /* for dead spot */
+				out.type = EV_REL;
+				out.code = REL_WHEEL;
+				if (out.value > 0)
+					out.value = -1;
+				else
+					out.value = 1;
+				write(ofd, &out, sizeof(out));
+			}
+			return;
+		}
+
+		if (out.code == ABS_HAT0X) {
+			if (out.value == -1)
+				send_arrow(ofd, KEY_LEFT);
+			else if (out.value == 1)
+				send_arrow(ofd, KEY_RIGHT);
+			return;
+		}
+
+		if (out.code == ABS_HAT0Y) {
+			if (out.value == -1)
+				send_arrow(ofd, KEY_UP);
+			else if (out.value == 1)
+				send_arrow(ofd, KEY_DOWN);
+			return;
 		}
 	}
 
@@ -70,6 +152,7 @@ int main(int argc, char **argv) {
 		}
 
 		/* TODO: strncmp() */
+		printf("testing: %s\n", libevdev_get_name(controller));
 		if(!strcmp(libevdev_get_name(controller), IN_DEVNAME)) {
 			printf("Attaching to device: %s\n",libevdev_get_name(controller));
 			break;
@@ -93,7 +176,7 @@ int main(int argc, char **argv) {
 	/* Now set up the output. */
 	ofd = open("/dev/uinput", O_WRONLY | O_NONBLOCK);
 	memset(&mouse, 0, sizeof(mouse)); /* Probably not actually required. */
-	
+
 	/* Describe the fake mouse */
 	mouse.id.bustype	= BUS_USB;
 	mouse.id.vendor		= 0x05A8;	/* Just use the one for Spacetec */
@@ -122,6 +205,11 @@ int main(int argc, char **argv) {
 	ioctl(ofd, UI_SET_KEYBIT, BTN_8);
 	ioctl(ofd, UI_SET_KEYBIT, BTN_9);
 	ioctl(ofd, UI_SET_KEYBIT, BTN_MIDDLE);
+	ioctl(ofd, UI_SET_KEYBIT, KEY_LEFT);
+	ioctl(ofd, UI_SET_KEYBIT, KEY_RIGHT);
+	ioctl(ofd, UI_SET_KEYBIT, KEY_UP);
+	ioctl(ofd, UI_SET_KEYBIT, KEY_DOWN);
+	ioctl(ofd, UI_SET_KEYBIT, KEY_F11);
 
 /*	These buttons appear in the actual device, but if we report them here, MatchIsMouse doesn't match. */
 //	ioctl(ofd,UI_SET_KEYBIT,BTN_C);
@@ -152,29 +240,14 @@ int main(int argc, char **argv) {
 			 * a clean SYN event for each one we get.
 			 */
 			if (in.type == EV_SYN) {
+				/* FIXME: what is this for? Can we get rid of that? */
 				if((in.code == SYN_REPORT) && (in.value == 0)) {
-					event(ofd, EV_SYN, SYN_REPORT,0);	
+					event(ofd, EV_SYN, SYN_REPORT,0);
 				}
 				continue;
 			}
 
-			/* FIXME: this is a hack, and this is usable. But it is jerky.
-			 * For starter, we should repeat the last events unless it is zero
-			 * (or inside the dead zone, see ABS_MIN). Otherwise we need to
-			 * perpetually move the stick or the cursor stops.
-			 */
-			if (in.type == EV_ABS) { /* Handle absolute motion. */
-//				printf("in.value: %d; %d\n", in.value, (int)((float)in.value*VELOCITY));
-				if (abs(in.value) > ABS_MIN) {
-					/* Allow a bit of a dead spot near the center. */
-					event(ofd, EV_REL, in.code, in.value*VELOCITY);
-					continue;
-				}
-			}
-			if (in.type == EV_KEY) { /* Handle button events. */
-				event(ofd, in.type, in.code, in.value);
-				continue;
-			}
+			event(ofd, in.type, in.code, in.value);
 		}
 	}
 	exit(0);
