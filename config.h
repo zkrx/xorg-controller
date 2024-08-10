@@ -22,7 +22,7 @@
 #define	MAXVAL		255
 
 /* What will we call our output device? */
-#define IN_DEVNAME		"Nintendo Switch Pro Controller"
+#define IN_DEVNAME		"Pro Controller"
 #define	OUT_DEVNAME		"Nintendo Switch Pro Remapped"
 
 
