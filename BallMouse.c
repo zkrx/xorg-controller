@@ -52,6 +52,7 @@ static inline void event(int ofd, int type, int code, int val) {
 		if (out.code == BTN_NORTH)	out.code = BTN_MIDDLE;
 		if (out.code == BTN_EAST)	out.code = BTN_RIGHT;
 		if (out.code == BTN_SOUTH)	out.code = BTN_LEFT;
+		if (out.code == BTN_WEST)	out.code = BTN_SIDE;
 		if (out.code == BTN_Z)		out.code = KEY_F11;
 	}
 
@@ -205,6 +206,7 @@ int main(int argc, char **argv) {
 	ioctl(ofd, UI_SET_KEYBIT, BTN_8);
 	ioctl(ofd, UI_SET_KEYBIT, BTN_9);
 	ioctl(ofd, UI_SET_KEYBIT, BTN_MIDDLE);
+	ioctl(ofd, UI_SET_KEYBIT, BTN_SIDE);
 	ioctl(ofd, UI_SET_KEYBIT, KEY_LEFT);
 	ioctl(ofd, UI_SET_KEYBIT, KEY_RIGHT);
 	ioctl(ofd, UI_SET_KEYBIT, KEY_UP);
